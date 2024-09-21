@@ -32,7 +32,6 @@ class MoleculeSimulator {
     this.resizeCanvas();
     this.setupEventListeners();
     this.startVideo();
-    this.animate();
   }
 
   resizeCanvas() {
@@ -72,25 +71,9 @@ class MoleculeSimulator {
     this.entropySpeedSlider.addEventListener('input', () => {
       this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
       this.entropySpeedValue.textContent = `${this.entropySpeedSlider.value}%`;
-      console.log("Entropy speed changed to:", this.entropySpeed);
     });
 
     this.captureButton.addEventListener('click', () => this.takeSelfie());
-
-    const sliders = [
-      { slider: this.opacitySlider, fill: document.getElementById('opacityFill') },
-      { slider: this.numCirclesSlider, fill: document.getElementById('numCirclesFill') },
-      { slider: this.randomnessSlider, fill: document.getElementById('randomnessFill') },
-      { slider: this.medianSizeSlider, fill: document.getElementById('medianSizeFill') },
-      { slider: this.entropySpeedSlider, fill: document.getElementById('entropySpeedFill') }
-    ];
-
-    sliders.forEach(({ slider, fill }) => {
-      this.updateSliderFill(slider, fill);
-      slider.addEventListener('input', () => this.updateSliderFill(slider, fill));
-    });
-
-    this.setupDragAndMinimize();
   }
 
   startVideo() {
@@ -101,6 +84,7 @@ class MoleculeSimulator {
           console.log('Video loaded:', this.video.videoWidth, this.video.videoHeight);
           this.initCircles();
           this.captureVideoFrame();
+          this.animate();
         });
       })
       .catch(err => {
@@ -161,7 +145,7 @@ class MoleculeSimulator {
     const centerY = movingCirclesCount > 0 ? totalY / movingCirclesCount : this.canvas.height / 2;
 
     this.circles.forEach(circle => {
-      circle.update(centerX, centerY, circle.isMoving, this.entropySpeed);
+      circle.update(centerX, centerY, circle.isMoving, this.entropySpeed, this.canvas.width, this.canvas.height);
     });
 
     for (let i = 0; i < this.circles.length; i++) {
@@ -169,8 +153,6 @@ class MoleculeSimulator {
         this.circles[i].resolveCollision(this.circles[j]);
       }
     }
-
-    console.log("Average velocity:", this.calculateAverageVelocity());
 
     requestAnimationFrame(() => this.animate());
   }
@@ -189,7 +171,7 @@ class MoleculeSimulator {
       const b2 = this.previousImageData.data[index + 2];
 
       const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-      const movementThreshold = 50;
+      const movementThreshold = 30; // Lowered threshold for increased sensitivity
 
       circle.isMoving = colorDiff > movementThreshold;
       circle.color = `rgb(${r1}, ${g1}, ${b1})`;
@@ -218,86 +200,6 @@ class MoleculeSimulator {
     link.download = 'molecule_selfie.png';
     link.click();
   }
-
-  updateSliderFill(slider, fillElement) {
-    const percentage = (slider.value - slider.min) / (slider.max - slider.min) * 100;
-    fillElement.style.width = percentage + '%';
-  }
-
-  calculateAverageVelocity() {
-    let totalVelocity = 0;
-    this.circles.forEach(circle => {
-      totalVelocity += Math.sqrt(circle.vx * circle.vx + circle.vy * circle.vy);
-    });
-    return totalVelocity / this.circles.length;
-  }
-
-  setupDragAndMinimize() {
-    const controls = document.getElementById('controls');
-    const dragHandle = document.getElementById('dragHandle');
-    const minimizeHandle = document.getElementById('minimizeHandle');
-    const restoreHandle = document.getElementById('restoreHandle');
-    let isDragging = false;
-    let currentX;
-    let currentY;
-    let initialX;
-    let initialY;
-    let xOffset = 0;
-    let yOffset = 0;
-
-    const dragStart = (e) => {
-      initialX = e.clientX - xOffset;
-      initialY = e.clientY - yOffset;
-
-      if (e.target === dragHandle) {
-        isDragging = true;
-      }
-    };
-
-    const dragEnd = (e) => {
-      initialX = currentX;
-      initialY = currentY;
-      isDragging = false;
-    };
-
-    const drag = (e) => {
-      if (isDragging) {
-        e.preventDefault();
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
-        xOffset = currentX;
-        yOffset = currentY;
-        setTranslate(currentX, currentY, controls);
-      }
-    };
-
-    const setTranslate = (xPos, yPos, el) => {
-      el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
-    };
-
-    dragHandle.addEventListener('mousedown', dragStart, false);
-    document.addEventListener('mouseup', dragEnd, false);
-    document.addEventListener('mousemove', drag, false);
-
-    minimizeHandle.addEventListener('click', () => {
-      controls.classList.add('fade-out');
-      setTimeout(() => {
-        controls.style.display = 'none';
-        restoreHandle.style.display = 'block';
-        restoreHandle.classList.add('fade-in');
-      }, 500);
-    });
-
-    restoreHandle.addEventListener('click', () => {
-      restoreHandle.classList.add('fade-out');
-      setTimeout(() => {
-        restoreHandle.style.display = 'none';
-        controls.style.display = 'block';
-        controls.classList.remove('fade-out');
-        controls.classList.add('fade-in');
-      }, 500);
-    });
-  }
 }
 
 class Circle {
@@ -312,18 +214,18 @@ class Circle {
     this.decayTime = 0;
   }
 
-  update(targetX, targetY, isMoving, entropySpeed) {
+  update(targetX, targetY, isMoving, entropySpeed, canvasWidth, canvasHeight) {
     if (isMoving) {
       const dx = targetX - this.x;
       const dy = targetY - this.y;
-      this.vx += dx * 0.03;
-      this.vy += dy * 0.03;
+      this.vx += dx * 0.05; // Increased attraction force
+      this.vy += dy * 0.05;
       this.decayTime = 50;
     } else if (this.decayTime > 0) {
       this.decayTime -= 1;
     } else {
-      this.vx += (Math.random() - 0.5) * entropySpeed * 2;
-      this.vy += (Math.random() - 0.5) * entropySpeed * 2;
+      this.vx += (Math.random() - 0.5) * entropySpeed * 4; // Increased random movement
+      this.vy += (Math.random() - 0.5) * entropySpeed * 4;
     }
 
     const friction = 0.95 - (entropySpeed * 0.1);
@@ -333,8 +235,15 @@ class Circle {
     this.x += this.vx;
     this.y += this.vy;
 
-    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
-    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+    // Bounce off canvas edges
+    if (this.x < this.radius || this.x > canvasWidth - this.radius) {
+      this.vx *= -1;
+      this.x = Math.max(this.radius, Math.min(canvasWidth - this.radius, this.x));
+    }
+    if (this.y < this.radius || this.y > canvasHeight - this.radius) {
+      this.vy *= -1;
+      this.y = Math.max(this.radius, Math.min(canvasHeight - this.radius, this.y));
+    }
   }
 
   draw(ctx) {
@@ -359,6 +268,12 @@ class Circle {
       this.y -= offsetY;
       otherCircle.x += offsetX;
       otherCircle.y += offsetY;
+
+      // Add some repulsion
+      this.vx -= dx * 0.05;
+      this.vy -= dy * 0.05;
+      otherCircle.vx += dx * 0.05;
+      otherCircle.vy += dy * 0.05;
     }
   }
 }
