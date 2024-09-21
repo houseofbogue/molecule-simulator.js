@@ -1,127 +1,62 @@
-function initMoleculeSimulator() {
-  console.log("initMoleculeSimulator function called");
+class MoleculeSimulator {
+  constructor() {
+    console.log("MoleculeSimulator constructor called");
+    this.video = document.getElementById('video');
+    this.canvas = document.getElementById('canvas');
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
 
-  function logElementStatus(id) {
-    const element = document.getElementById(id);
-    console.log(`Element ${id}: ${element ? 'Found' : 'Not found'}`);
-    return element;
+    this.opacitySlider = document.getElementById('opacitySlider');
+    this.opacityValue = document.getElementById('opacityValue');
+    this.numCirclesSlider = document.getElementById('numCirclesSlider');
+    this.numCirclesValue = document.getElementById('numCirclesValue');
+    this.randomnessSlider = document.getElementById('randomnessSlider');
+    this.randomnessValue = document.getElementById('randomnessValue');
+    this.medianSizeSlider = document.getElementById('medianSizeSlider');
+    this.medianSizeValue = document.getElementById('medianSizeValue');
+    this.entropySpeedSlider = document.getElementById('entropySpeedSlider');
+    this.entropySpeedValue = document.getElementById('entropySpeedValue');
+    this.captureButton = document.getElementById('captureButton');
+
+    this.medianCircleSize = parseInt(this.medianSizeSlider.value);
+    this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
+    this.numCircles = parseInt(this.numCirclesSlider.value);
+    this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
+
+    this.circles = [];
+    this.currentImageData = null;
+    this.previousImageData = null;
+
+    this.spatialHash = new SpatialHash(50);
+
+    this.init();
   }
 
-  const video = logElementStatus('video');
-  const canvas = logElementStatus('canvas');
-  const ctx = canvas ? canvas.getContext('2d') : null;
+  init() {
+    console.log("Initializing MoleculeSimulator");
+    this.resizeCanvas();
+    this.startVideo();
+    this.setupEventListeners();
+    this.animate();
+  }
 
-  const opacitySlider = logElementStatus('opacitySlider');
-  const opacityValue = logElementStatus('opacityValue');
-  const numCirclesSlider = logElementStatus('numCirclesSlider');
-  const numCirclesValue = logElementStatus('numCirclesValue');
-  const randomnessSlider = logElementStatus('randomnessSlider');
-  const randomnessValue = logElementStatus('randomnessValue');
-  const medianSizeSlider = logElementStatus('medianSizeSlider');
-  const medianSizeValue = logElementStatus('medianSizeValue');
-  const entropySpeedSlider = logElementStatus('entropySpeedSlider');
-  const entropySpeedValue = logElementStatus('entropySpeedValue');
-  const captureButton = logElementStatus('captureButton');
-
-  let medianCircleSize = parseInt(medianSizeSlider.value);
-  let sizeRandomness = parseInt(randomnessSlider.value) / 100;
-  let numCircles = parseInt(numCirclesSlider.value);
-  let entropySpeed = parseInt(entropySpeedSlider.value) / 100;
-
-  let circles = [];
-  let currentImageData, previousImageData;
-
-  function resizeCanvas() {
-    console.log("Resizing canvas");
+  resizeCanvas() {
     const container = document.getElementById('container');
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
+    this.canvas.width = container.clientWidth;
+    this.canvas.height = container.clientHeight;
+    console.log(`Canvas resized to ${this.canvas.width}x${this.canvas.height}`);
   }
 
-  window.addEventListener('resize', resizeCanvas, false);
-
-  class Circle {
-    constructor(x, y, radius, color) {
-      this.x = x;
-      this.y = y;
-      this.radius = radius;
-      this.color = color;
-      this.vx = 0;
-      this.vy = 0;
-      this.isMoving = false;
-      this.decayTime = 0;
-    }
-
-    update(targetX, targetY, isMoving) {
-      if (isMoving) {
-        const dx = targetX - this.x;
-        const dy = targetY - this.y;
-        this.vx += dx * 0.03;
-        this.vy += dy * 0.03;
-        this.decayTime = 50;
-      } else if (this.decayTime > 0) {
-        this.decayTime -= 1;
-      } else {
-        this.vx += (Math.random() - 0.5) * entropySpeed * 2;
-        this.vy += (Math.random() - 0.5) * entropySpeed * 2;
-      }
-
-      const friction = 0.95 - (entropySpeed * 0.1);
-      this.vx *= friction;
-      this.vy *= friction;
-
-      this.x += this.vx;
-      this.y += this.vy;
-
-      this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
-      this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
-    }
-
-    draw(ctx) {
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-      ctx.fillStyle = this.color;
-      ctx.fill();
-    }
-
-    resolveCollision(otherCircle) {
-      const dx = otherCircle.x - this.x;
-      const dy = otherCircle.y - this.y;
-      const dist = Math.hypot(dx, dy);
-      const minDist = this.radius + otherCircle.radius;
-
-      if (dist < minDist) {
-        const overlap = minDist - dist;
-        const offsetX = (dx / dist) * (overlap / 2);
-        const offsetY = (dy / dist) * (overlap / 2);
-
-        this.x -= offsetX;
-        this.y -= offsetY;
-        otherCircle.x += offsetX;
-        otherCircle.y += offsetY;
-      }
-    }
-  }
-
-  function init() {
-    console.log("Initializing");
-    resizeCanvas();
-    startVideo();
-    animate();
-  }
-
-  function startVideo() {
-    console.log("Attempting to start video");
+  startVideo() {
+    console.log("Starting video capture");
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
-        console.log("Video stream obtained");
-        video.srcObject = stream;
-        video.addEventListener('loadeddata', () => {
+        this.video.srcObject = stream;
+        this.video.addEventListener('loadeddata', () => {
           console.log("Video data loaded");
-          video.width = video.videoWidth;
-          video.height = video.videoHeight;
-          initCircles();
-          captureVideoFrame();
+          this.video.width = this.video.videoWidth;
+          this.video.height = this.video.videoHeight;
+          this.initCircles();
+          this.captureVideoFrame();
         });
       })
       .catch(err => {
@@ -130,50 +65,49 @@ function initMoleculeSimulator() {
       });
   }
 
-  function initCircles() {
-    console.log("Initializing circles");
-    circles = [];
-    const gridSize = Math.sqrt(numCircles);
-    for (let y = 0; y < gridSize; y++) {
-      for (let x = 0; x < gridSize; x++) {
-        const posX = (x + 0.5) * (canvas.width / gridSize);
-        const posY = (y + 0.5) * (canvas.height / gridSize);
-        const radius = Math.max(1, medianCircleSize + (Math.random() - 0.5) * sizeRandomness * medianCircleSize);
-        const circle = new Circle(posX, posY, radius, 'rgb(0, 0, 0)');
-        circles.push(circle);
-      }
+  initCircles() {
+    console.log(`Initializing ${this.numCircles} circles`);
+    this.circles = [];
+    for (let i = 0; i < this.numCircles; i++) {
+      const x = Math.random() * this.canvas.width;
+      const y = Math.random() * this.canvas.height;
+      const radius = Math.max(1, this.medianCircleSize + (Math.random() - 0.5) * this.sizeRandomness * this.medianCircleSize);
+      this.circles.push(new Circle(x, y, radius, 'rgb(0, 0, 0)'));
     }
   }
 
-  function captureVideoFrame() {
-    console.log("Capturing video frame");
+  captureVideoFrame() {
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = video.videoWidth;
-    tempCanvas.height = video.videoHeight;
-    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = this.video.videoWidth;
+    tempCanvas.height = this.video.videoHeight;
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-    function capture() {
-      previousImageData = currentImageData;
+    let frameCount = 0;
+    const captureInterval = 5;
 
-      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-      currentImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-
+    const capture = () => {
+      frameCount++;
+      if (frameCount % captureInterval === 0) {
+        this.previousImageData = this.currentImageData;
+        tempCtx.drawImage(this.video, 0, 0, tempCanvas.width, tempCanvas.height);
+        this.currentImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      }
       requestAnimationFrame(capture);
-    }
+    };
 
     capture();
   }
 
-  function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  animate() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     let totalX = 0;
     let totalY = 0;
     let movingCirclesCount = 0;
 
-    circles.forEach(circle => {
-      updateCircle(circle);
-      circle.draw(ctx);
+    this.circles.forEach(circle => {
+      this.updateCircle(circle);
+      circle.draw(this.ctx);
 
       if (circle.isMoving) {
         totalX += circle.x;
@@ -182,56 +116,58 @@ function initMoleculeSimulator() {
       }
     });
 
-    const centerX = movingCirclesCount > 0 ? totalX / movingCirclesCount : canvas.width / 2;
-    const centerY = movingCirclesCount > 0 ? totalY / movingCirclesCount : canvas.height / 2;
+    const centerX = movingCirclesCount > 0 ? totalX / movingCirclesCount : this.canvas.width / 2;
+    const centerY = movingCirclesCount > 0 ? totalY / movingCirclesCount : this.canvas.height / 2;
 
-    circles.forEach(circle => {
-      circle.update(centerX, centerY, circle.isMoving);
+    this.circles.forEach(circle => {
+      circle.update(centerX, centerY, circle.isMoving, this.entropySpeed);
     });
 
-    for (let i = 0; i < circles.length; i++) {
-      for (let j = i + 1; j < circles.length; j++) {
-        circles[i].resolveCollision(circles[j]);
+    this.spatialHash.clear();
+    this.circles.forEach(circle => this.spatialHash.insert(circle));
+
+    this.circles.forEach(circle => {
+      const potentialCollisions = this.spatialHash.getPotentialCollisions(circle);
+      potentialCollisions.forEach(otherCircle => {
+        if (circle !== otherCircle) {
+          circle.resolveCollision(otherCircle);
+        }
+      });
+    });
+
+    requestAnimationFrame(() => this.animate());
+  }
+
+  updateCircle(circle) {
+    if (this.currentImageData && this.previousImageData) {
+      const videoX = Math.floor((circle.x / this.canvas.width) * this.currentImageData.width);
+      const videoY = Math.floor((circle.y / this.canvas.height) * this.currentImageData.height);
+      const index = (videoY * this.currentImageData.width + videoX) * 4;
+
+      const colorDiff = Math.abs(this.currentImageData.data[index] - this.previousImageData.data[index]) +
+                        Math.abs(this.currentImageData.data[index + 1] - this.previousImageData.data[index + 1]) +
+                        Math.abs(this.currentImageData.data[index + 2] - this.previousImageData.data[index + 2]);
+
+      const movementThreshold = 50;
+      circle.isMoving = colorDiff > movementThreshold;
+
+      if (circle.isMoving) {
+        circle.color = `rgb(${this.currentImageData.data[index]}, ${this.currentImageData.data[index + 1]}, ${this.currentImageData.data[index + 2]})`;
       }
     }
-
-    console.log("Average velocity:", calculateAverageVelocity());
-
-    requestAnimationFrame(animate);
   }
 
-  function updateCircle(circle) {
-    if (currentImageData && previousImageData) {
-      const videoX = Math.floor((circle.x / canvas.width) * currentImageData.width);
-      const videoY = Math.floor((circle.y / canvas.height) * currentImageData.height);
-      const index = (videoY * currentImageData.width + videoX) * 4;
-
-      const r1 = currentImageData.data[index];
-      const g1 = currentImageData.data[index + 1];
-      const b1 = currentImageData.data[index + 2];
-      const r2 = previousImageData.data[index];
-      const g2 = previousImageData.data[index + 1];
-      const b2 = previousImageData.data[index + 2];
-
-      const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-      const movementThreshold = 50;
-
-      circle.isMoving = colorDiff > movementThreshold;
-      circle.color = `rgb(${r1}, ${g1}, ${b1})`;
-    }
-  }
-
-  function takeSelfie() {
+  takeSelfie() {
     console.log("Taking selfie");
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
+    tempCanvas.width = this.canvas.width;
+    tempCanvas.height = this.canvas.height;
     const tempCtx = tempCanvas.getContext('2d');
 
     tempCtx.fillStyle = 'white';
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-    circles.forEach(circle => {
+    this.circles.forEach(circle => {
       tempCtx.beginPath();
       tempCtx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
       tempCtx.fillStyle = circle.color;
@@ -245,65 +181,141 @@ function initMoleculeSimulator() {
     link.click();
   }
 
-  function updateSliderFill(slider, fillElement) {
-    const percentage = (slider.value - slider.min) / (slider.max - slider.min) * 100;
-    fillElement.style.width = percentage + '%';
-  }
+  setupEventListeners() {
+    console.log("Setting up event listeners");
+    window.addEventListener('resize', () => this.resizeCanvas());
 
-  const sliders = [
-    { slider: opacitySlider, fill: document.getElementById('opacityFill') },
-    { slider: numCirclesSlider, fill: document.getElementById('numCirclesFill') },
-    { slider: randomnessSlider, fill: document.getElementById('randomnessFill') },
-    { slider: medianSizeSlider, fill: document.getElementById('medianSizeFill') },
-    { slider: entropySpeedSlider, fill: document.getElementById('entropySpeedFill') }
-  ];
-
-  sliders.forEach(({ slider, fill }) => {
-    updateSliderFill(slider, fill);
-    slider.addEventListener('input', () => updateSliderFill(slider, fill));
-  });
-
-  opacitySlider.addEventListener('input', () => {
-    const opacity = parseInt(opacitySlider.value);
-    opacityValue.textContent = opacity + '%';
-    video.style.opacity = opacity / 100;
-  });
-
-  numCirclesSlider.addEventListener('input', () => {
-    numCircles = parseInt(numCirclesSlider.value);
-    numCirclesValue.textContent = numCircles;
-    initCircles();
-  });
-
-  randomnessSlider.addEventListener('input', () => {
-    sizeRandomness = parseInt(randomnessSlider.value) / 100;
-    randomnessValue.textContent = `${randomnessSlider.value}%`;
-    initCircles();
-  });
-
-  medianSizeSlider.addEventListener('input', () => {
-    medianCircleSize = parseInt(medianSizeSlider.value);
-    medianSizeValue.textContent = medianCircleSize;
-    initCircles();
-  });
-
-  entropySpeedSlider.addEventListener('input', () => {
-    entropySpeed = parseInt(entropySpeedSlider.value) / 100;
-    entropySpeedValue.textContent = `${entropySpeedSlider.value}%`;
-    console.log("Entropy speed changed to:", entropySpeed);
-  });
-
-  captureButton.addEventListener('click', takeSelfie);
-
-  function calculateAverageVelocity() {
-    let totalVelocity = 0;
-    circles.forEach(circle => {
-      totalVelocity += Math.sqrt(circle.vx * circle.vx + circle.vy * circle.vy);
+    this.opacitySlider.addEventListener('input', () => {
+      const opacity = parseInt(this.opacitySlider.value);
+      this.opacityValue.textContent = opacity + '%';
+      this.video.style.opacity = opacity / 100;
     });
-    return totalVelocity / circles.length;
+
+    this.numCirclesSlider.addEventListener('input', () => {
+      this.numCircles = parseInt(this.numCirclesSlider.value);
+      this.numCirclesValue.textContent = this.numCircles;
+      this.initCircles();
+    });
+
+    this.randomnessSlider.addEventListener('input', () => {
+      this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
+      this.randomnessValue.textContent = `${this.randomnessSlider.value}%`;
+      this.initCircles();
+    });
+
+    this.medianSizeSlider.addEventListener('input', () => {
+      this.medianCircleSize = parseInt(this.medianSizeSlider.value);
+      this.medianSizeValue.textContent = this.medianCircleSize;
+      this.initCircles();
+    });
+
+    this.entropySpeedSlider.addEventListener('input', () => {
+      this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
+      this.entropySpeedValue.textContent = `${this.entropySpeedSlider.value}%`;
+    });
+
+    this.captureButton.addEventListener('click', () => this.takeSelfie());
+  }
+}
+
+class Circle {
+  constructor(x, y, radius, color) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+    this.color = color;
+    this.vx = 0;
+    this.vy = 0;
+    this.isMoving = false;
+    this.decayTime = 0;
   }
 
-  console.log("About to call init()");
-  init();
-  console.log("init() called");
+  update(targetX, targetY, isMoving, entropySpeed) {
+    if (isMoving) {
+      const dx = targetX - this.x;
+      const dy = targetY - this.y;
+      this.vx += dx * 0.03;
+      this.vy += dy * 0.03;
+      this.decayTime = 50;
+    } else if (this.decayTime > 0) {
+      this.decayTime -= 1;
+    } else {
+      this.vx += (Math.random() - 0.5) * entropySpeed * 2;
+      this.vy += (Math.random() - 0.5) * entropySpeed * 2;
+    }
+
+    const friction = 0.95 - (entropySpeed * 0.1);
+    this.vx *= friction;
+    this.vy *= friction;
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Keep within canvas boundaries
+    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+  }
+
+  draw(ctx) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+
+  resolveCollision(otherCircle) {
+    const dx = otherCircle.x - this.x;
+    const dy = otherCircle.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    const minDist = this.radius + otherCircle.radius;
+
+    if (dist < minDist) {
+      const overlap = minDist - dist;
+      const offsetX = (dx / dist) * (overlap / 2);
+      const offsetY = (dy / dist) * (overlap / 2);
+
+      this.x -= offsetX;
+      this.y -= offsetY;
+      otherCircle.x += offsetX;
+      otherCircle.y += offsetY;
+    }
+  }
 }
+
+class SpatialHash {
+  constructor(cellSize) {
+    this.cellSize = cellSize;
+    this.grid = {};
+  }
+
+  getKey(x, y) {
+    return `${Math.floor(x / this.cellSize)},${Math.floor(y / this.cellSize)}`;
+  }
+
+  insert(circle) {
+    const key = this.getKey(circle.x, circle.y);
+    if (!this.grid[key]) {
+      this.grid[key] = [];
+    }
+    this.grid[key].push(circle);
+  }
+
+  getPotentialCollisions(circle) {
+    const nearbyKeys = [
+      this.getKey(circle.x, circle.y),
+      this.getKey(circle.x - this.cellSize, circle.y),
+      this.getKey(circle.x + this.cellSize, circle.y),
+      this.getKey(circle.x, circle.y - this.cellSize),
+      this.getKey(circle.x, circle.y + this.cellSize),
+    ];
+
+    return nearbyKeys.flatMap(key => this.grid[key] || []);
+  }
+
+  clear() {
+    this.grid = {};
+  }
+}
+
+// Initialize the simulator when the script is loaded
+new MoleculeSimulator();
