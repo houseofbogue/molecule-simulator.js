@@ -1,43 +1,67 @@
-class MoleculeSimulator {
-  constructor() {
-    console.log("MoleculeSimulator constructor called");
-    this.video = document.getElementById('video');
-    this.canvas = document.getElementById('canvas');
-    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+(function() {
+  class Circle {
+    constructor(x, y, radius, color) {
+      this.x = x;
+      this.y = y;
+      this.radius = radius;
+      this.color = color;
+      this.vx = 0;
+      this.vy = 0;
+      this.isMoving = false;
+      this.decayTime = 0;
+    }
 
-    this.opacitySlider = document.getElementById('opacitySlider');
-    this.opacityValue = document.getElementById('opacityValue');
-    this.numCirclesSlider = document.getElementById('numCirclesSlider');
-    this.numCirclesValue = document.getElementById('numCirclesValue');
-    this.randomnessSlider = document.getElementById('randomnessSlider');
-    this.randomnessValue = document.getElementById('randomnessValue');
-    this.medianSizeSlider = document.getElementById('medianSizeSlider');
-    this.medianSizeValue = document.getElementById('medianSizeValue');
-    this.entropySpeedSlider = document.getElementById('entropySpeedSlider');
-    this.entropySpeedValue = document.getElementById('entropySpeedValue');
-    this.captureButton = document.getElementById('captureButton');
+    update(targetX, targetY, isMoving, entropySpeed) {
+      // Update circle position and velocity
+      // ... (implementation details)
+    }
 
-    this.medianCircleSize = parseInt(this.medianSizeSlider.value);
-    this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
-    this.numCircles = parseInt(this.numCirclesSlider.value);
-    this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
+    draw(ctx) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+    }
 
-    this.circles = [];
-    this.currentImageData = null;
-    this.previousImageData = null;
-
-    this.init();
+    resolveCollision(otherCircle) {
+      // Resolve collision between circles
+      // ... (implementation details)
+    }
   }
 
-  // ... (rest of the MoleculeSimulator class methods)
+  class MoleculeSimulator {
+    constructor() {
+      this.video = document.getElementById('video');
+      this.canvas = document.getElementById('canvas');
+      this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
 
-}
+      // Initialize UI elements
+      this.initUI();
 
-class Circle {
-  // ... (Circle class implementation)
-}
+      this.circles = [];
+      this.currentImageData = null;
+      this.previousImageData = null;
 
-// Initialize the simulator when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-  new MoleculeSimulator();
-});
+      this.init();
+    }
+
+    initUI() {
+      // Initialize sliders and other UI elements
+      // ... (implementation details)
+    }
+
+    init() {
+      this.resizeCanvas();
+      this.startVideo();
+      this.setupEventListeners();
+      this.animate();
+    }
+
+    // ... (other methods: resizeCanvas, startVideo, initCircles, captureVideoFrame, animate, updateCircle, takeSelfie, setupEventListeners)
+  }
+
+  // Initialize the simulator when the DOM is fully loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    new MoleculeSimulator();
+  });
+})();
