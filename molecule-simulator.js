@@ -19,7 +19,7 @@ class MoleculeSimulator {
     this.medianCircleSize = parseInt(this.medianSizeSlider.value);
     this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
     this.numCircles = parseInt(this.numCirclesSlider.value);
-    this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
+    this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 50;
 
     this.circles = [];
     this.currentImageData = null;
@@ -29,51 +29,18 @@ class MoleculeSimulator {
   }
 
   init() {
-    this.resizeCanvas();
-    this.setupEventListeners();
-    this.startVideo();
+    setTimeout(() => {
+      this.resizeCanvas();
+      this.startVideo();
+      this.animate();
+      this.setupEventListeners();
+    }, 100);
   }
 
   resizeCanvas() {
-    const container = document.getElementById('container');
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
-    console.log('Canvas resized:', this.canvas.width, this.canvas.height);
-  }
-
-  setupEventListeners() {
-    window.addEventListener('resize', () => this.resizeCanvas(), false);
-
-    this.opacitySlider.addEventListener('input', () => {
-      const opacity = parseInt(this.opacitySlider.value);
-      this.opacityValue.textContent = opacity + '%';
-      this.video.style.opacity = opacity / 100;
-    });
-
-    this.numCirclesSlider.addEventListener('input', () => {
-      this.numCircles = parseInt(this.numCirclesSlider.value);
-      this.numCirclesValue.textContent = this.numCircles;
-      this.initCircles();
-    });
-
-    this.randomnessSlider.addEventListener('input', () => {
-      this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
-      this.randomnessValue.textContent = `${this.randomnessSlider.value}%`;
-      this.initCircles();
-    });
-
-    this.medianSizeSlider.addEventListener('input', () => {
-      this.medianCircleSize = parseInt(this.medianSizeSlider.value);
-      this.medianSizeValue.textContent = this.medianCircleSize;
-      this.initCircles();
-    });
-
-    this.entropySpeedSlider.addEventListener('input', () => {
-      this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 100;
-      this.entropySpeedValue.textContent = `${this.entropySpeedSlider.value}%`;
-    });
-
-    this.captureButton.addEventListener('click', () => this.takeSelfie());
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.initCircles();
   }
 
   startVideo() {
@@ -81,10 +48,10 @@ class MoleculeSimulator {
       .then(stream => {
         this.video.srcObject = stream;
         this.video.addEventListener('loadeddata', () => {
-          console.log('Video loaded:', this.video.videoWidth, this.video.videoHeight);
+          this.video.width = this.video.videoWidth;
+          this.video.height = this.video.videoHeight;
           this.initCircles();
           this.captureVideoFrame();
-          this.animate();
         });
       })
       .catch(err => {
@@ -145,7 +112,7 @@ class MoleculeSimulator {
     const centerY = movingCirclesCount > 0 ? totalY / movingCirclesCount : this.canvas.height / 2;
 
     this.circles.forEach(circle => {
-      circle.update(centerX, centerY, circle.isMoving, this.entropySpeed, this.canvas.width, this.canvas.height);
+      circle.update(centerX, centerY, circle.isMoving, this.entropySpeed);
     });
 
     for (let i = 0; i < this.circles.length; i++) {
@@ -171,7 +138,7 @@ class MoleculeSimulator {
       const b2 = this.previousImageData.data[index + 2];
 
       const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-      const movementThreshold = 30; // Lowered threshold for increased sensitivity
+      const movementThreshold = 30;
 
       circle.isMoving = colorDiff > movementThreshold;
       circle.color = `rgb(${r1}, ${g1}, ${b1})`;
@@ -200,6 +167,59 @@ class MoleculeSimulator {
     link.download = 'molecule_selfie.png';
     link.click();
   }
+
+  updateSliderFill(slider, fillElement) {
+    const percentage = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    fillElement.style.width = percentage + '%';
+  }
+
+  setupEventListeners() {
+    const sliders = [
+      { slider: this.opacitySlider, fill: document.getElementById('opacityFill') },
+      { slider: this.numCirclesSlider, fill: document.getElementById('numCirclesFill') },
+      { slider: this.randomnessSlider, fill: document.getElementById('randomnessFill') },
+      { slider: this.medianSizeSlider, fill: document.getElementById('medianSizeFill') },
+      { slider: this.entropySpeedSlider, fill: document.getElementById('entropySpeedFill') }
+    ];
+
+    sliders.forEach(({ slider, fill }) => {
+      this.updateSliderFill(slider, fill);
+      slider.addEventListener('input', () => this.updateSliderFill(slider, fill));
+    });
+
+    this.opacitySlider.addEventListener('input', () => {
+      const opacity = parseInt(this.opacitySlider.value);
+      this.opacityValue.textContent = opacity + '%';
+      this.video.style.opacity = opacity / 100;
+    });
+
+    this.numCirclesSlider.addEventListener('input', () => {
+      this.numCircles = parseInt(this.numCirclesSlider.value);
+      this.numCirclesValue.textContent = this.numCircles;
+      this.initCircles();
+    });
+
+    this.randomnessSlider.addEventListener('input', () => {
+      this.sizeRandomness = parseInt(this.randomnessSlider.value) / 100;
+      this.randomnessValue.textContent = `${this.randomnessSlider.value}%`;
+      this.initCircles();
+    });
+
+    this.medianSizeSlider.addEventListener('input', () => {
+      this.medianCircleSize = parseInt(this.medianSizeSlider.value);
+      this.medianSizeValue.textContent = this.medianCircleSize;
+      this.initCircles();
+    });
+
+    this.entropySpeedSlider.addEventListener('input', () => {
+      this.entropySpeed = parseInt(this.entropySpeedSlider.value) / 50;
+      this.entropySpeedValue.textContent = `${this.entropySpeedSlider.value}%`;
+    });
+
+    this.captureButton.addEventListener('click', () => this.takeSelfie());
+
+    window.addEventListener('resize', () => this.resizeCanvas());
+  }
 }
 
 class Circle {
@@ -214,18 +234,18 @@ class Circle {
     this.decayTime = 0;
   }
 
-  update(targetX, targetY, isMoving, entropySpeed, canvasWidth, canvasHeight) {
+  update(targetX, targetY, isMoving, entropySpeed) {
     if (isMoving) {
       const dx = targetX - this.x;
       const dy = targetY - this.y;
-      this.vx += dx * 0.05; // Increased attraction force
+      this.vx += dx * 0.05;
       this.vy += dy * 0.05;
       this.decayTime = 50;
     } else if (this.decayTime > 0) {
       this.decayTime -= 1;
     } else {
-      this.vx += (Math.random() - 0.5) * entropySpeed * 4; // Increased random movement
-      this.vy += (Math.random() - 0.5) * entropySpeed * 4;
+      this.vx += (Math.random() - 0.5) * entropySpeed * 2;
+      this.vy += (Math.random() - 0.5) * entropySpeed * 2;
     }
 
     const friction = 0.95 - (entropySpeed * 0.1);
@@ -235,15 +255,8 @@ class Circle {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Bounce off canvas edges
-    if (this.x < this.radius || this.x > canvasWidth - this.radius) {
-      this.vx *= -1;
-      this.x = Math.max(this.radius, Math.min(canvasWidth - this.radius, this.x));
-    }
-    if (this.y < this.radius || this.y > canvasHeight - this.radius) {
-      this.vy *= -1;
-      this.y = Math.max(this.radius, Math.min(canvasHeight - this.radius, this.y));
-    }
+    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
   }
 
   draw(ctx) {
@@ -268,15 +281,14 @@ class Circle {
       this.y -= offsetY;
       otherCircle.x += offsetX;
       otherCircle.y += offsetY;
-
-      // Add some repulsion
-      this.vx -= dx * 0.05;
-      this.vy -= dy * 0.05;
-      otherCircle.vx += dx * 0.05;
-      otherCircle.vy += dy * 0.05;
     }
   }
 }
 
 // This line allows the embed.js to create a new instance
 window.MoleculeSimulator = MoleculeSimulator;
+
+// Initialize the simulator when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+  new MoleculeSimulator();
+});
