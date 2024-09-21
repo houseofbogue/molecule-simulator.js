@@ -1,0 +1,285 @@
+document.addEventListener('DOMContentLoaded', (event) => {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const controls = document.getElementById('controls');
+    const dragHandle = document.getElementById('dragHandle');
+    const minimizeHandle = document.getElementById('minimizeHandle');
+    const restoreHandle = document.getElementById('restoreHandle');
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityValue = document.getElementById('opacityValue');
+    const numCirclesSlider = document.getElementById('numCirclesSlider');
+    const numCirclesValue = document.getElementById('numCirclesValue');
+    const randomnessSlider = document.getElementById('randomnessSlider');
+    const randomnessValue = document.getElementById('randomnessValue');
+    const medianSizeSlider = document.getElementById('medianSizeSlider');
+    const medianSizeValue = document.getElementById('medianSizeValue');
+    const entropySpeedSlider = document.getElementById('entropySpeedSlider');
+    const entropySpeedValue = document.getElementById('entropySpeedValue');
+    const captureButton = document.getElementById('captureButton');
+
+    let isDragging = false;
+    let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+    let medianCircleSize = parseInt(medianSizeSlider.value);
+    let sizeRandomness = parseInt(randomnessSlider.value) / 100;
+    let numCircles = parseInt(numCirclesSlider.value);
+    let entropySpeed = parseInt(entropySpeedSlider.value) / 100;
+    let circles = [];
+
+    function resizeCanvas() {
+        const container = document.getElementById('container');
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas, false);
+
+    class Circle {
+        constructor(x, y, radius, color) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.color = color;
+            this.vx = 0;
+            this.vy = 0;
+            this.isMoving = false;
+            this.decayTime = 0;
+        }
+
+        update(targetX, targetY, isMoving) {
+            if (isMoving) {
+                const dx = targetX - this.x;
+                const dy = targetY - this.y;
+                this.vx += dx * 0.03;
+                this.vy += dy * 0.03;
+                this.decayTime = 50;
+            } else if (this.decayTime > 0) {
+                this.decayTime -= 1;
+            } else {
+                this.vx += (Math.random() - 0.5) * entropySpeed * 2;
+                this.vy += (Math.random() - 0.5) * entropySpeed * 2;
+            }
+
+            const friction = 0.95 - (entropySpeed * 0.1);
+            this.vx *= friction;
+            this.vy *= friction;
+
+            this.x += this.vx;
+            this.y += this.vy;
+
+            this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+            this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+
+        resolveCollision(otherCircle) {
+            const dx = otherCircle.x - this.x;
+            const dy = otherCircle.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = this.radius + otherCircle.radius;
+
+            if (dist < minDist) {
+                const overlap = minDist - dist;
+                const offsetX = (dx / dist) * (overlap / 2);
+                const offsetY = (dy / dist) * (overlap / 2);
+
+                this.x -= offsetX;
+                this.y -= offsetY;
+                otherCircle.x += offsetX;
+                otherCircle.y += offsetY;
+            }
+        }
+    }
+
+    function init() {
+        resizeCanvas();
+        startVideo();
+        animate();
+    }
+
+    function startVideo() {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                video.addEventListener('loadeddata', () => {
+                    video.width = video.videoWidth;
+                    video.height = video.videoHeight;
+
+                    initCircles();
+                    captureVideoFrame();
+                });
+            })
+            .catch(err => {
+                console.error('Error accessing webcam:', err);
+                alert('Please allow access to your webcam.');
+            });
+    }
+
+    function initCircles() {
+        circles = [];
+        const gridSize = Math.sqrt(numCircles);
+        for (let y = 0; y < gridSize; y++) {
+            for (let x = 0; x < gridSize; x++) {
+                const posX = (x + 0.5) * (canvas.width / gridSize);
+                const posY = (y + 0.5) * (canvas.height / gridSize);
+                const radius = Math.max(1, medianCircleSize + (Math.random() - 0.5) * sizeRandomness * medianCircleSize);
+                const circle = new Circle(posX, posY, radius, 'rgb(0, 0, 0)');
+                circles.push(circle);
+            }
+        }
+    }
+
+    let currentImageData, previousImageData;
+
+    function captureVideoFrame() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        function capture() {
+            tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+            previousImageData = currentImageData;
+            currentImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            requestAnimationFrame(capture);
+        }
+
+        capture();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (currentImageData && previousImageData) {
+            const movementData = detectMovement(currentImageData, previousImageData);
+            updateCircles(movementData);
+        }
+
+        for (let i = 0; i < circles.length; i++) {
+            circles[i].draw(ctx);
+            for (let j = i + 1; j < circles.length; j++) {
+                circles[i].resolveCollision(circles[j]);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    function detectMovement(currentImageData, previousImageData) {
+        const movementThreshold = 30;
+        const blockSize = 16;
+        const width = currentImageData.width;
+        const height = currentImageData.height;
+        const movementData = [];
+
+        for (let y = 0; y < height; y += blockSize) {
+            for (let x = 0; x < width; x += blockSize) {
+                let movement = 0;
+                for (let by = 0; by < blockSize; by++) {
+                    for (let bx = 0; bx < blockSize; bx++) {
+                        const i = ((y + by) * width + (x + bx)) * 4;
+                        const rDiff = Math.abs(currentImageData.data[i] - previousImageData.data[i]);
+                        const gDiff = Math.abs(currentImageData.data[i + 1] - previousImageData.data[i + 1]);
+                        const bDiff = Math.abs(currentImageData.data[i + 2] - previousImageData.data[i + 2]);
+                        movement += rDiff + gDiff + bDiff;
+                    }
+                }
+                if (movement > movementThreshold) {
+                    movementData.push({ x: x + blockSize / 2, y: y + blockSize / 2 });
+                }
+            }
+        }
+        return movementData;
+    }
+
+    function updateCircles(movementData) {
+        if (movementData.length > 0) {
+            const centerX = movementData.reduce((sum, point) => sum + point.x, 0) / movementData.length;
+            const centerY = movementData.reduce((sum, point) => sum + point.y, 0) / movementData.length;
+
+            circles.forEach(circle => {
+                circle.update(centerX, centerY, true);
+            });
+        } else {
+            circles.forEach(circle => {
+                circle.update(0, 0, false);
+            });
+        }
+    }
+
+    function dragStart(e) {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+        if (e.target === dragHandle) isDragging = true;
+    }
+
+    function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+    }
+
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            setTranslate(currentX, currentY, controls);
+        }
+    }
+
+    function setTranslate(xPos, yPos, el) {
+        el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+    }
+
+    dragHandle.addEventListener('mousedown', dragStart, false);
+    document.addEventListener('mouseup', dragEnd, false);
+    document.addEventListener('mousemove', drag, false);
+
+    minimizeHandle.addEventListener('click', () => {
+        controls.classList.add('fade-out');
+        setTimeout(() => {
+            controls.style.display = 'none';
+            restoreHandle.style.display = 'block';
+            restoreHandle.classList.add('fade-in');
+        }, 500);
+    });
+
+    restoreHandle.addEventListener('click', () => {
+        restoreHandle.classList.add('fade-out');
+        setTimeout(() => {
+            restoreHandle.style.display = 'none';
+            controls.style.display = 'block';
+            controls.classList.remove('fade-out');
+            controls.classList.add('fade-in');
+        }, 500);
+    });
+
+    function updateSliderFill(slider, fillElement) {
+        const percentage = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+        fillElement.style.width = percentage + '%';
+    }
+
+    const sliders = [
+        { slider: opacitySlider, fill: document.getElementById('opacityFill') },
+        { slider: numCirclesSlider, fill: document.getElementById('numCirclesFill') },
+        { slider: randomnessSlider, fill: document.getElementById('randomnessFill') },
+        { slider: medianSizeSlider, fill: document.getElementById('medianSizeFill') },
+        { slider: entropySpeedSlider, fill: document.getElementById('entropySpeedFill') }
+    ];
+
+    sliders.forEach(({ slider, fill }) => {
+        updateSliderFill(slider, fill);
+        slider.addEventListener('input', () => updateSliderFill(slider, fill));
+    });
+
+    init();
+});
