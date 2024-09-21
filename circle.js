@@ -1,32 +1,14 @@
-class MoleculeSimulator {
-  constructor() {
-    console.log("MoleculeSimulator constructor called");
-    this.video = document.getElementById('video');
-    this.canvas = document.getElementById('canvas');
-    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-
-    // Initialize sliders and other UI elements
-    this.initializeUI();
-
-    this.circles = [];
-    this.currentImageData = null;
-    this.previousImageData = null;
-
-    this.init();
+class Circle {
+  constructor(x, y, radius, color) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+    this.color = color;
+    this.vx = 0;
+    this.vy = 0;
+    this.isMoving = false;
+    this.decayTime = 0;
   }
 
-  initializeUI() {
-    // Initialize all sliders and UI elements here
-    // ... (code to initialize UI elements)
-  }
-
-  init() {
-    console.log("Initializing MoleculeSimulator");
-    this.resizeCanvas();
-    this.startVideo();
-    this.setupEventListeners();
-    this.animate();
-  }
-
-  // ... (other methods of MoleculeSimulator)
+  // ... (other methods of Circle)
 }
