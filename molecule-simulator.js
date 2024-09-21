@@ -1,3 +1,5 @@
+console.log("molecule-simulator.js starting...");
+
 document.addEventListener('DOMContentLoaded', (event) => {
   console.log("DOM fully loaded and parsed");
   console.log("Video element:", document.getElementById('video'));
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const container = document.getElementById('container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
+    console.log("Canvas resized to:", canvas.width, "x", canvas.height);
   }
 
   window.addEventListener('resize', resizeCanvas, false);
@@ -98,65 +101,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
   function init() {
     console.log("Initializing...");
-    resizeCanvas();
-    startVideo();
-    animate();
+    try {
+      resizeCanvas();
+      console.log("Canvas resized");
+      startVideo();
+      console.log("startVideo called");
+      animate();
+      console.log("animate called");
+    } catch (error) {
+      console.error("Error in init:", error);
+    }
   }
 
   function startVideo() {
     console.log("Attempting to start video...");
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        console.log("Camera access granted");
-        video.srcObject = stream;
-        video.addEventListener('loadeddata', () => {
-          console.log("Video data loaded");
-          video.width = video.videoWidth;
-          video.height = video.videoHeight;
-
-          initCircles();
-          captureVideoFrame();
-        });
-      })
-      .catch(err => {
-        console.error('Error accessing webcam:', err);
-        alert('Please allow access to your webcam.');
-      });
-  }
-
-  function initCircles() {
-    circles = [];
-    const gridSize = Math.sqrt(numCircles);
-    for (let y = 0; y < gridSize; y++) {
-      for (let x = 0; x < gridSize; x++) {
-        const posX = (x + 0.5) * (canvas.width / gridSize);
-        const posY = (y + 0.5) * (canvas.height / gridSize);
-        const radius = Math.max(1, medianCircleSize + (Math.random() - 0.5) * sizeRandomness * medianCircleSize);
-        const circle = new Circle(posX, posY, radius, 'rgb(0, 0, 0)');
-        circles.push(circle);
-      }
-    }
-  }
-
-  let currentImageData, previousImageData;
-
-  function captureVideoFrame() {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = video.videoWidth;
-    tempCanvas.height = video.videoHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    function capture() {
-      previousImageData = currentImageData;
-
-      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-      currentImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-
-      requestAnimationFrame(capture);
-    }
-
-    capture();
-  }
-
-  function animate() {
-    ctx.clearRect(0
+    if (navigator.mediaDev
