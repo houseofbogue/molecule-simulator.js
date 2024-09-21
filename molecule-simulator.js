@@ -1,19 +1,27 @@
 function initMoleculeSimulator() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+  console.log("initMoleculeSimulator function called");
 
-  const opacitySlider = document.getElementById('opacitySlider');
-  const opacityValue = document.getElementById('opacityValue');
-  const numCirclesSlider = document.getElementById('numCirclesSlider');
-  const numCirclesValue = document.getElementById('numCirclesValue');
-  const randomnessSlider = document.getElementById('randomnessSlider');
-  const randomnessValue = document.getElementById('randomnessValue');
-  const medianSizeSlider = document.getElementById('medianSizeSlider');
-  const medianSizeValue = document.getElementById('medianSizeValue');
-  const entropySpeedSlider = document.getElementById('entropySpeedSlider');
-  const entropySpeedValue = document.getElementById('entropySpeedValue');
-  const captureButton = document.getElementById('captureButton');
+  function logElementStatus(id) {
+    const element = document.getElementById(id);
+    console.log(`Element ${id}: ${element ? 'Found' : 'Not found'}`);
+    return element;
+  }
+
+  const video = logElementStatus('video');
+  const canvas = logElementStatus('canvas');
+  const ctx = canvas ? canvas.getContext('2d') : null;
+
+  const opacitySlider = logElementStatus('opacitySlider');
+  const opacityValue = logElementStatus('opacityValue');
+  const numCirclesSlider = logElementStatus('numCirclesSlider');
+  const numCirclesValue = logElementStatus('numCirclesValue');
+  const randomnessSlider = logElementStatus('randomnessSlider');
+  const randomnessValue = logElementStatus('randomnessValue');
+  const medianSizeSlider = logElementStatus('medianSizeSlider');
+  const medianSizeValue = logElementStatus('medianSizeValue');
+  const entropySpeedSlider = logElementStatus('entropySpeedSlider');
+  const entropySpeedValue = logElementStatus('entropySpeedValue');
+  const captureButton = logElementStatus('captureButton');
 
   let medianCircleSize = parseInt(medianSizeSlider.value);
   let sizeRandomness = parseInt(randomnessSlider.value) / 100;
@@ -21,8 +29,10 @@ function initMoleculeSimulator() {
   let entropySpeed = parseInt(entropySpeedSlider.value) / 100;
 
   let circles = [];
+  let currentImageData, previousImageData;
 
   function resizeCanvas() {
+    console.log("Resizing canvas");
     const container = document.getElementById('container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
@@ -94,19 +104,22 @@ function initMoleculeSimulator() {
   }
 
   function init() {
+    console.log("Initializing");
     resizeCanvas();
     startVideo();
     animate();
   }
 
   function startVideo() {
+    console.log("Attempting to start video");
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
+        console.log("Video stream obtained");
         video.srcObject = stream;
         video.addEventListener('loadeddata', () => {
+          console.log("Video data loaded");
           video.width = video.videoWidth;
           video.height = video.videoHeight;
-
           initCircles();
           captureVideoFrame();
         });
@@ -118,6 +131,7 @@ function initMoleculeSimulator() {
   }
 
   function initCircles() {
+    console.log("Initializing circles");
     circles = [];
     const gridSize = Math.sqrt(numCircles);
     for (let y = 0; y < gridSize; y++) {
@@ -131,9 +145,8 @@ function initMoleculeSimulator() {
     }
   }
 
-  let currentImageData, previousImageData;
-
   function captureVideoFrame() {
+    console.log("Capturing video frame");
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = video.videoWidth;
     tempCanvas.height = video.videoHeight;
@@ -209,6 +222,7 @@ function initMoleculeSimulator() {
   }
 
   function takeSelfie() {
+    console.log("Taking selfie");
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
@@ -289,5 +303,7 @@ function initMoleculeSimulator() {
     return totalVelocity / circles.length;
   }
 
+  console.log("About to call init()");
   init();
+  console.log("init() called");
 }
