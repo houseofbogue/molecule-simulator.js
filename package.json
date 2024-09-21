@@ -1,0 +1,6 @@
+   {
+     "name": "houseofbogue-molecule-simulator",
+     "version": "1.0.0",
+     "main": "molecule-simulator.js",
+     "files": ["molecule-simulator.js", "embed.js"]
+   }
