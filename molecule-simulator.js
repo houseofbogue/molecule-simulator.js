@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', (event) => {
+  console.log("DOM fully loaded and parsed");
+  console.log("Video element:", document.getElementById('video'));
+
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
@@ -94,16 +97,20 @@ document.addEventListener('DOMContentLoaded', (event) => {
   let circles = [];
 
   function init() {
+    console.log("Initializing...");
     resizeCanvas();
     startVideo();
     animate();
   }
 
   function startVideo() {
+    console.log("Attempting to start video...");
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
+        console.log("Camera access granted");
         video.srcObject = stream;
         video.addEventListener('loadeddata', () => {
+          console.log("Video data loaded");
           video.width = video.videoWidth;
           video.height = video.videoHeight;
 
@@ -152,210 +159,4 @@ document.addEventListener('DOMContentLoaded', (event) => {
   }
 
   function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    let totalX = 0;
-    let totalY = 0;
-    let movingCirclesCount = 0;
-
-    circles.forEach(circle => {
-      updateCircle(circle);
-      circle.draw(ctx);
-
-      if (circle.isMoving) {
-        totalX += circle.x;
-        totalY += circle.y;
-        movingCirclesCount++;
-      }
-    });
-
-    const centerX = movingCirclesCount > 0 ? totalX / movingCirclesCount : canvas.width / 2;
-    const centerY = movingCirclesCount > 0 ? totalY / movingCirclesCount : canvas.height / 2;
-
-    circles.forEach(circle => {
-      circle.update(centerX, centerY, circle.isMoving);
-    });
-
-    for (let i = 0; i < circles.length; i++) {
-      for (let j = i + 1; j < circles.length; j++) {
-        circles[i].resolveCollision(circles[j]);
-      }
-    }
-
-    console.log("Average velocity:", calculateAverageVelocity());
-
-    requestAnimationFrame(animate);
-  }
-
-  function updateCircle(circle) {
-    if (currentImageData && previousImageData) {
-      const videoX = Math.floor((circle.x / canvas.width) * currentImageData.width);
-      const videoY = Math.floor((circle.y / canvas.height) * currentImageData.height);
-      const index = (videoY * currentImageData.width + videoX) * 4;
-
-      const r1 = currentImageData.data[index];
-      const g1 = currentImageData.data[index + 1];
-      const b1 = currentImageData.data[index + 2];
-      const r2 = previousImageData.data[index];
-      const g2 = previousImageData.data[index + 1];
-      const b2 = previousImageData.data[index + 2];
-
-      const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-      const movementThreshold = 50;
-
-      circle.isMoving = colorDiff > movementThreshold;
-      circle.color = `rgb(${r1}, ${g1}, ${b1})`;
-    }
-  }
-
-  function takeSelfie() {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    tempCtx.fillStyle = 'white';
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-    circles.forEach(circle => {
-      tempCtx.beginPath();
-      tempCtx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-      tempCtx.fillStyle = circle.color;
-      tempCtx.fill();
-    });
-
-    const dataURL = tempCanvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = 'molecule_selfie.png';
-    link.click();
-  }
-
-  function updateSliderFill(slider, fillElement) {
-    const percentage = (slider.value - slider.min) / (slider.max - slider.min) * 100;
-    fillElement.style.width = percentage + '%';
-  }
-
-  const sliders = [
-    { slider: opacitySlider, fill: document.getElementById('opacityFill') },
-    { slider: numCirclesSlider, fill: document.getElementById('numCirclesFill') },
-    { slider: randomnessSlider, fill: document.getElementById('randomnessFill') },
-    { slider: medianSizeSlider, fill: document.getElementById('medianSizeFill') },
-    { slider: entropySpeedSlider, fill: document.getElementById('entropySpeedFill') }
-  ];
-
-  sliders.forEach(({ slider, fill }) => {
-    updateSliderFill(slider, fill);
-    slider.addEventListener('input', () => updateSliderFill(slider, fill));
-  });
-
-  opacitySlider.addEventListener('input', () => {
-    const opacity = parseInt(opacitySlider.value);
-    opacityValue.textContent = opacity + '%';
-    video.style.opacity = opacity / 100;
-  });
-
-  numCirclesSlider.addEventListener('input', () => {
-    numCircles = parseInt(numCirclesSlider.value);
-    numCirclesValue.textContent = numCircles;
-    initCircles();
-  });
-
-  randomnessSlider.addEventListener('input', () => {
-    sizeRandomness = parseInt(randomnessSlider.value) / 100;
-    randomnessValue.textContent = `${randomnessSlider.value}%`;
-    initCircles();
-  });
-
-  medianSizeSlider.addEventListener('input', () => {
-    medianCircleSize = parseInt(medianSizeSlider.value);
-    medianSizeValue.textContent = medianCircleSize;
-    initCircles();
-  });
-
-  entropySpeedSlider.addEventListener('input', () => {
-    entropySpeed = parseInt(entropySpeedSlider.value) / 100;
-    entropySpeedValue.textContent = `${entropySpeedSlider.value}%`;
-    console.log("Entropy speed changed to:", entropySpeed);
-  });
-
-  captureButton.addEventListener('click', takeSelfie);
-
-  function calculateAverageVelocity() {
-    let totalVelocity = 0;
-    circles.forEach(circle => {
-      totalVelocity += Math.sqrt(circle.vx * circle.vx + circle.vy * circle.vy);
-    });
-    return totalVelocity / circles.length;
-  }
-
-  const controls = document.getElementById('controls');
-  const dragHandle = document.getElementById('dragHandle');
-  const minimizeHandle = document.getElementById('minimizeHandle');
-  const restoreHandle = document.getElementById('restoreHandle');
-  let isDragging = false;
-  let currentX;
-  let currentY;
-  let initialX;
-  let initialY;
-  let xOffset = 0;
-  let yOffset = 0;
-
-  function dragStart(e) {
-    initialX = e.clientX - xOffset;
-    initialY = e.clientY - yOffset;
-
-    if (e.target === dragHandle) {
-      isDragging = true;
-    }
-  }
-
-  function dragEnd(e) {
-    initialX = currentX;
-    initialY = currentY;
-
-    isDragging = false;
-  }
-
-  function drag(e) {
-    if (isDragging) {
-      e.preventDefault();
-      currentX = e.clientX - initialX;
-      currentY = e.clientY - initialY;
-
-      xOffset = currentX;
-      yOffset = currentY;
-
-      setTranslate(currentX, currentY, controls);
-    }
-  }
-
-  function setTranslate(xPos, yPos, el) {
-    el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
-  }
-
-  dragHandle.addEventListener('mousedown', dragStart, false);
-  document.addEventListener('mouseup', dragEnd, false);
-  document.addEventListener('mousemove', drag, false);
-
-  minimizeHandle.addEventListener('click', () => {
-    controls.classList.add('fade-out');
-    setTimeout(() => {
-      controls.style.display = 'none';
-      restoreHandle.style.display = 'block';
-      restoreHandle.classList.add('fade-in');
-    }, 500);
-  });
-
-  restoreHandle.addEventListener('click', () => {
-    restoreHandle.classList.add('fade-out');
-    setTimeout(() => {
-      restoreHandle.style.display = 'none';
-      controls.style.display = 'block';
-      controls.classList.remove('fade-out');
-      controls.classList.add('fade-in');
-    }, 500);
-  });
-
-  init();
-});
+    ctx.clearRect(0
